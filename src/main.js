@@ -3,8 +3,11 @@
 import Vue from 'vue';
 import App from './App';
 import router from './router';
+import Music from './assets/js/music';
 import './assets/js/rem';
 import './assets/css/reset.css'
+
+window.bgm = new Music();
 
 Vue.config.productionTip = false;
 

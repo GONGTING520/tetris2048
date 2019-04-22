@@ -1,7 +1,7 @@
 <template>
   <div class="container">
-    <div class="best-score">得分：{{score}}</div>
-    <div class="score">时长：{{keepTime}}</div>
+    <div class="level">第 {{level}} 关</div>
+    <div class="score">得分：{{score}}</div>
     <div class="playground" ref="playground">
       <span class="diamond" v-if="this.fallingDiamond" :style="getDiamondStyle(this.fallingDiamond)"></span>
       <span v-for="(item, index) in diamonds" :key="index">
@@ -12,7 +12,6 @@
     <div class="game-over" v-if="this.isGameOver">
       <p class="game-over-txt">GAME OVER</p>
       <p class="game-over-score">最终得分：{{score}}</p>
-      <p class="game-over-score">坚持时长：{{keepTime}}</p>
       <div class="btn restart" @click="restartGame">重新开始</div>
       <router-link class="btn home" to="/">返回首页</router-link>
     </div>
@@ -30,8 +29,6 @@ export default {
     return {
       score: 0,
       level: 1, // 当前关卡
-      startTime: 0,
-      endTime: 0,
       width: 0,
       diamonds: this.getTwoDimensionArray(7, 7),
       fallingDiamond: null, //正在下落的方块
@@ -44,7 +41,6 @@ export default {
     };
   },
   mounted(){
-    this.startTime = new Date();
     // 小方块的宽度
     this.width = this.$refs.playground.offsetWidth / 7;
     this.newDiamond(); // 初始化新方块
@@ -53,18 +49,6 @@ export default {
   components: {
     BackBtn
   },
-  computed: {
-    keepTime(){
-      var leadTime = new Date(this.endTime - this.startTime);
-      var hours = leadTime.getHours() - 8;
-      var minute = leadTime.getMinutes();
-      var second = leadTime.getSeconds();
-      var str = hours > 0 ? hours + 'h' : '';
-      str += minute > 0 ? minute + 'm' : '';
-      str += second + 's';
-      return str;
-    }
-  },
   updated(){
     if (this.fallingDiamond == null || this.needRemerge.length > 0 || this.isTapUpdate || this.isNeedNew){
       return;
@@ -72,7 +56,6 @@ export default {
     console.log('update');
     setTimeout(() => {
       // 如果方块可以继续移动
-      this.endTime = new Date();
       if (this.judgeFallingMove()) {
         this.fallingDiamond.fallOne();
       } else {
@@ -81,6 +64,7 @@ export default {
           this.score += this.fallingDiamond.number;
           if (this.score >= 5000 * this.level) {
             this.level++
+            window.bgm.playLevelUpBgm();
             this.downTime -= 200;
             this.mergeTime -= 200;
             if (this.downTime < 400) {
@@ -98,7 +82,6 @@ export default {
               this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x] = this.fallingDiamond;
               this.fallingDiamond = null;
             } else {
-              // console.log('no move new');
               this.newDiamond();
             }
           });
@@ -139,7 +122,6 @@ export default {
     },
     // 生成新方块
     newDiamond(){
-      this.endTime = new Date();
       console.log('new');
       if (this.fallingDiamond){
         this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x] = this.fallingDiamond;
@@ -192,7 +174,6 @@ export default {
     // 合并相邻方块
     mergeDiamonds(callback){
       setTimeout(() => {
-        this.endTime = new Date();
         if (this.fallingDiamond.y < 6) {
           let downDiamond = this.diamonds[this.fallingDiamond.y + 1][this.fallingDiamond.x]
           if (!!downDiamond && downDiamond.number == this.fallingDiamond.number) {
@@ -382,12 +363,12 @@ export default {
   background: url(/static/images/gamebg.jpg) no-repeat 0 0/100% 100%;
 }
 
-.best-score{
-  padding-top: 1.5rem;
-  padding-left: .5rem;
+.level{
+  padding-top: 1.4rem;
   color: #ffffff;
   font-weight: bold;
-  font-size: .36rem;
+  font-size: .42rem;
+  text-align: center;
 }
 
 .score{

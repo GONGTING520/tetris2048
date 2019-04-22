@@ -1,22 +1,27 @@
 <template>
-  <div>
+  <div class="container">
     <div class="best-score">最高得分：{{bestScore}}</div>
     <div class="score">得分：{{score}}</div>
     <div class="playground" ref="playground">
-      <span class="diamond" v-if="this.fallingDiamond" :style="getDiamondStyle(this.fallingDiamond)" v-text="this.fallingDiamond.number"></span>
-      <span class="diamond" :style="getDiamondStyle(item)" v-for="(item, index) in diamonds" :key="index" v-text="item.number"></span>
+      <span class="diamond" v-if="this.fallingDiamond" :style="getDiamondStyle(this.fallingDiamond)"></span>
+      <span v-for="(item, index) in diamonds" :key="index">
+        <span v-if="diaItem.visible" class="diamond" :style="getDiamondStyle(diaItem)"  v-for="(diaItem, index) in item" :key="'dia'+index"></span>
+      </span>
     </div>
+    <BackBtn></BackBtn>
     <div class="game-over" v-if="this.isGameOver">
       <p class="game-over-txt">GAME OVER</p>
       <p class="game-over-score">最终得分：{{score}}</p>
       <div class="btn restart" @click="restartGame">重新开始</div>
       <router-link class="btn home" to="/">返回首页</router-link>
     </div>
+    <BackBtn></BackBtn>
   </div>
 </template>
 
 <script>
 import Diamond from'../../assets/js/diamonds';
+import BackBtn from '@/components/BackBtn';
 
 export default {
   name: 'NewGame',
@@ -24,21 +29,28 @@ export default {
     return {
       bestScore: 0,
       score: 0,
+      level: 1, // 当前关卡
       width: 0,
-      diamonds: [],
+      diamonds: this.getTwoDimensionArray(7, 7),
       fallingDiamond: null, //正在下落的方块
       isTapUpdate: false, //是否由点击触发updated
-      mergeTime: 800,
+      mergeTime: 600,
+      downTime: 800,
       isNeedNew: false, // 是否需要新建方块
       isGameOver: false, // 是否游戏结束
       needRemerge: [] // fallingDiamond merge完成后需要merge的其余变更方块
     };
   },
   mounted(){
+    // 获取单机模式游戏最好记录
+    this.bestScore = window.localStorage.getItem('bestScore') || 0;
     // 小方块的宽度
-    this.width = this.$refs.playground.offsetWidth / 10;
+    this.width = this.$refs.playground.offsetWidth / 7;
     this.newDiamond(); // 初始化新方块
     this.addEvent(); // 添加监听事件
+  },
+  components: {
+    BackBtn
   },
   updated(){
     if (this.fallingDiamond == null || this.needRemerge.length > 0 || this.isTapUpdate || this.isNeedNew){
@@ -53,13 +65,30 @@ export default {
         if (!this.isNeedNew) {
           this.isNeedNew = true;
           this.score += this.fallingDiamond.number;
+          if (this.score > this.bestScore) {
+            this.bestScore = this.score;
+          }
+          if (this.score >= 5000 * this.level) {
+            this.level++
+            this.downTime -= 200;
+            this.mergeTime -= 200;
+            if (this.downTime < 400) {
+              this.downTime = 400;
+            }
+            if (this.mergeTime < 400) {
+              this.mergeTime = 400;
+            }
+          }
         }
-        if (this.fallingDiamond.y == 1 && this.fallingDiamond.x == 5) {
+        if (this.fallingDiamond.y == 0 && this.fallingDiamond.x == 3) {
           this.mergeDiamonds(() => {
-            if (this.fallingDiamond.y == 1 && this.fallingDiamond.x == 5) {
+            if (this.fallingDiamond.y == 0 && this.fallingDiamond.x == 3) {
               this.isGameOver = true;
-              this.diamonds.push(this.fallingDiamond);
+              this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x] = this.fallingDiamond;
               this.fallingDiamond = null;
+              if (this.bestScore > window.localStorage.getItem('bestScore')) {
+                window.localStorage.setItem('bestScore', this.bestScore);
+              }
             } else {
               // console.log('no move new');
               this.newDiamond();
@@ -70,18 +99,33 @@ export default {
         this.mergeDiamonds(this.newDiamond);
       }
       this.isTapUpdate = false;
-    }, this.fallingDiamond.speed);
+    }, this.downTime);
   },
   methods: {
+    /**
+     * 获取二维数组
+     * @param {Number} x: 二维数组横坐标-每一层中内容的长度
+     * @param {Number} y: 二维数组纵坐标-第一层的长度
+     * @return {Array}: 返回一个 x * y 的二维数组
+     */
+    getTwoDimensionArray(x, y) {
+      let array = new Array(y)
+
+      for(let i = 0 ; i < y ; i++){
+        array[i] = new Array(x).fill(0)
+      }
+      
+      return array
+    },
     // 获取小方块样式
     getDiamondStyle(elem){
       var style = {
-        left: (elem.x - 1) * this.width + 'px',
-        top: (elem.y - 1) * this.width + 'px',
+        left: elem.x * this.width + 'px',
+        top: elem.y * this.width + 'px',
         width: this.width + 'px',
         height: this.width + 'px',
         lineHeight: this.width + 'px',
-        background: elem.color
+        background: 'url(' + elem.imgSrc + ') no-repeat center/100% 100%'
       };
       return style;
     },
@@ -89,9 +133,9 @@ export default {
     newDiamond(){
       console.log('new');
       if (this.fallingDiamond){
-        this.diamonds.push(this.fallingDiamond);
+        this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x] = this.fallingDiamond;
       }
-      var index = Math.floor(Math.random() * 6);
+      var index = Math.ceil(Math.random() * 6);
       this.fallingDiamond = new Diamond(index);
       this.isNeedNew = false;
     },
@@ -101,39 +145,25 @@ export default {
         this.isTapUpdate = true;
         switch (e.keyCode) {
           case 37: //左
-            if (this.fallingDiamond.x <= 1){
+            if (this.fallingDiamond.x <= 0){
               return;
             }
-            var bIsCanMoveLeft = true;
-            this.diamonds.forEach(element => {
-              // 当前方块不能继续左移
-              if (element.y == this.fallingDiamond.y && element.x == this.fallingDiamond.x - 1) {
-                bIsCanMoveLeft = false;
-              }
-            });
-            if (bIsCanMoveLeft) {
+            if (this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x - 1] == 0) {
               this.fallingDiamond.moveLeft();
             }
             break;
           case 38: //上
             break;
           case 39: //右
-            if (this.fallingDiamond.x >= 10){
+            if (this.fallingDiamond.x >= 6){
               return;
             }
-            var bIsCanMoveRight = true;
-            this.diamonds.forEach(element => {
-              // 当前方块不能继续左移
-              if (element.y == this.fallingDiamond.y && element.x == this.fallingDiamond.x + 1) {
-                bIsCanMoveRight = false;
-              }
-            });
-            if (bIsCanMoveRight) {
+            if (this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x + 1] == 0) {
               this.fallingDiamond.moveRight();              
             }
             break;
           case 40: //下
-            if (this.fallingDiamond.y >= 10 || !this.judgeFallingMove()){
+            if (this.fallingDiamond.y >= 6 || !this.judgeFallingMove()){
               return;
             }
             this.fallingDiamond.fallOne();
@@ -148,90 +178,183 @@ export default {
       if (bIsCanMove == false) {
         return bIsCanMove;
       }
-      this.diamonds.forEach(element => {
-        // 当前方块不能继续下落
-        if (element.x == this.fallingDiamond.x && element.y == this.fallingDiamond.y + 1) {
-          bIsCanMove = false;
-        }
-      });
-      return bIsCanMove;
+      return this.diamonds[this.fallingDiamond.y + 1][this.fallingDiamond.x] == 0
     },
     // 合并相邻方块
     mergeDiamonds(callback){
       setTimeout(() => {
-        var res = this.diamonds.some((elem, index) => {
-          if (elem.number == this.fallingDiamond.number) {
-            // 向下合并
-            if (elem.x == this.fallingDiamond.x && elem.y == this.fallingDiamond.y + 1) {
-              this.diamondFallDown(this.fallingDiamond.x, this.fallingDiamond.y); // 让x，y坐标以上的方块下落
-              this.fallingDiamond.fallOne();
-              this.fallingDiamond.changeNumber(this.fallingDiamond.number + elem.number);
-              this.score += this.fallingDiamond.number;
-              console.log(index, "down", this.diamonds.length);
-              this.diamonds.splice(index, 1);
-              console.log(this.diamonds.length);
-              return true;
+        if (this.fallingDiamond.y < 6) {
+          let downDiamond = this.diamonds[this.fallingDiamond.y + 1][this.fallingDiamond.x]
+          if (!!downDiamond && downDiamond.number == this.fallingDiamond.number) {
+            // 下方可以合并
+            downDiamond.visible = false
+            this.diamonds[this.fallingDiamond.y + 1][this.fallingDiamond.x] = 0
+            this.fallingDiamond.changeNumber()
+            this.fallingDiamond.fallOne()
+            this.diamonds[this.fallingDiamond.y - 1][this.fallingDiamond.x] = 0
+
+            window.bgm.playMergeBgm()
+
+            // 向下移动后，将原位置上方的所有方块下落一格
+            for (let i = this.fallingDiamond.y - 2; i >= 0; i--) {
+              let topDiamond = this.diamonds[i][this.fallingDiamond.x]
+              if (!!topDiamond) {
+                topDiamond.fallOne()
+
+                this.diamonds[i + 1][this.fallingDiamond.x] = topDiamond
+                this.diamonds[i][this.fallingDiamond.x] = 0
+
+                this.needRemerge.push(topDiamond)
+              }
             }
-            // 向左合并
-            if (elem.x == this.fallingDiamond.x - 1 && elem.y == this.fallingDiamond.y) {
-              this.diamondFallDown(this.fallingDiamond.x, this.fallingDiamond.y); // 让x，y坐标以上的方块下落
-              this.fallingDiamond.moveLeft();
-              this.fallingDiamond.changeNumber(this.fallingDiamond.number + elem.number);              
-              this.score += this.fallingDiamond.number;
-              console.log(index, "left", this.diamonds.length);
-              this.diamonds.splice(index, 1);
-              console.log(this.diamonds.length);
-              return true;
-            }
-            // 向右合并
-            if (elem.x == this.fallingDiamond.x + 1 && elem.y == this.fallingDiamond.y) {
-              this.diamondFallDown(elem.x, elem.y); // 让x，y坐标以上的方块下落
-              elem.moveLeft();
-              this.fallingDiamond.changeNumber(this.fallingDiamond.number + elem.number);              
-              this.score += this.fallingDiamond.number;
-              console.log(index, "right", this.diamonds.length);
-              this.diamonds.splice(index, 1);
-              console.log(this.diamonds.length);
-              return true;
-            }
-            // 向上合并
-            if (elem.x == this.fallingDiamond.x && elem.y + 1 == this.fallingDiamond.y) {
-              this.diamondFallDown(elem.x, elem.y); // 让x，y坐标以上的方块下落
-              elem.fallOne();
-              this.fallingDiamond.changeNumber(this.fallingDiamond.number + elem.number);              
-              this.score += this.fallingDiamond.number;
-              console.log(index, "up", this.diamonds.length);
-              this.diamonds.splice(index, 1);
-              console.log(this.diamonds.length);
-              return true;
-            }
-          }
-        });
-        if (res) {
-          console.log('merge');
-          this.mergeDiamonds(callback);
-        } else {
-          if (this.needRemerge.length < 1) {
-            callback && callback();
-          } else {
-            console.log('remerge');
-            this.needRemerge.sort((a, b) => {
-              return b.y - a.y;
-            });
-            this.diamonds.push(this.fallingDiamond);
-            this.fallingDiamond = this.needRemerge.shift();
+
             this.mergeDiamonds(callback);
+            return
           }
         }
+
+        // 检测上方方块是否可以合并
+        if (this.fallingDiamond.y > 0) {
+          let topDiamonds = this.diamonds[this.fallingDiamond.y - 1][this.fallingDiamond.x]
+          if (!!topDiamonds && topDiamonds.number == this.fallingDiamond.number) {
+            // 上方可以合并
+            topDiamonds.visible = false
+            this.diamonds[this.fallingDiamond.y - 1][this.fallingDiamond.x] = 0
+            this.fallingDiamond.changeNumber()
+
+            window.bgm.playMergeBgm()
+
+            // 向下移动后，将原位置上方的所有方块下落一格
+            for (let i = this.fallingDiamond.y - 2; i >= 0; i--) {
+              let topDiamond = this.diamonds[i][this.fallingDiamond.x]
+              if (!!topDiamond) {
+                topDiamond.fallOne()
+
+                this.diamonds[i + 1][this.fallingDiamond.x] = topDiamond
+                this.diamonds[i][this.fallingDiamond.x] = 0
+
+                this.needRemerge.push(topDiamond)
+              }
+            }
+
+            this.mergeDiamonds(callback);
+            return
+          }
+        }
+
+        // 检测左侧方块是否可以合并
+        if (this.fallingDiamond.x > 0) {
+          let leftDiamond = this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x - 1]
+          if (!!leftDiamond && leftDiamond.number == this.fallingDiamond.number) {
+            // 左侧可以合并
+            leftDiamond.visible = false
+            this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x - 1] = 0
+            this.fallingDiamond.changeNumber()
+
+            window.bgm.playMergeBgm()
+
+            // 左侧方块向右移动后，将原位置上方的所有方块下落一格
+            for (let i = this.fallingDiamond.y - 1; i >= 0; i--) {
+              let leftTopDiamond = this.diamonds[i][this.fallingDiamond.x - 1]
+              if (!!leftTopDiamond) {
+                leftTopDiamond.fallOne()
+
+                this.diamonds[i + 1][this.fallingDiamond.x - 1] = leftTopDiamond
+                this.diamonds[i][this.fallingDiamond.x - 1] = 0
+
+                this.needRemerge.push(leftTopDiamond)
+              }
+            }
+
+            this.mergeDiamonds(callback);
+            return
+          }
+        }
+
+        // 检测右侧方块是否可以合并
+        if (this.fallingDiamond.x < 6) {
+          let rightDiamond = this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x + 1]
+          if (!!rightDiamond && rightDiamond.number == this.fallingDiamond.number) {
+            // 右侧可以合并
+            rightDiamond.visible = false
+            this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x + 1] = 0
+            this.fallingDiamond.changeNumber()
+
+            window.bgm.playMergeBgm()
+
+            // 将右上方的所有方块下落一格
+            for (let i = this.fallingDiamond.y - 1; i >= 0; i--) {
+              let rightTopDiamond = this.diamonds[i][this.fallingDiamond.x + 1]
+              if (!!rightTopDiamond) {
+                rightTopDiamond.fallOne()
+
+                this.diamonds[i + 1][this.fallingDiamond.x + 1] = rightTopDiamond
+                this.diamonds[i][this.fallingDiamond.x + 1] = 0
+
+                this.needRemerge.push(rightTopDiamond)
+              }
+            }
+
+            this.mergeDiamonds(callback);
+            return
+          }
+        }
+
+        // 如果需要merge的list中有元素
+        if (this.needRemerge.length) {
+          this.diamonds[this.fallingDiamond.y][this.fallingDiamond.x] = this.fallingDiamond
+          
+          // 将已经合并过的元素剔除
+          do{
+            this.fallingDiamond = this.needRemerge.shift()
+          } while (this.fallingDiamond && !this.isCanMerge(this.fallingDiamond))
+
+          if (!this.fallingDiamond) {
+            callback && callback()
+            return
+          }
+
+          this.mergeDiamonds(callback);
+          return
+        }
+        
+        callback && callback()
       }, this.mergeTime);
     },
-    diamondFallDown(x, y){
-      this.diamonds.forEach(elem => {
-        if (elem.x == x && elem.y < y) {
-          this.needRemerge.push(elem);
-          elem.fallOne();
+    isCanMerge(item) {
+      if (!item.visible) {
+        return false
+      }
+
+      // 左侧可以合并
+      if (item.x > 0 && this.diamonds[item.y][item.x - 1] != 0) {
+        if (item.number == this.diamonds[item.y][item.x - 1].number) {
+          return true
         }
-      })
+      }
+
+      // 右侧可以合并
+      if (item.x < 6 && this.diamonds[item.y][item.x + 1] != 0) {
+        if (item.number == this.diamonds[item.y][item.x + 1].number) {
+          return true
+        }
+      }
+
+      // 上方可以合并
+      if (item.y > 0 && this.diamonds[item.y - 1][item.x] != 0) {
+        if (item.number == this.diamonds[item.y - 1][item.x].number) {
+          return true
+        }
+      }
+
+      // 下方可以合并
+      if (item.y < 6 && this.diamonds[item.y + 1][item.x] != 0) {
+        if (item.number == this.diamonds[item.y + 1][item.x].number) {
+          return true
+        }
+      }
+
+      return false
     },
     restartGame(){
       window.location.reload();
@@ -242,16 +365,27 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+.container{
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: url(/static/images/gamebg.jpg) no-repeat 0 0/100% 100%;
+}
+
 .best-score{
-  padding-top: 1rem;
-  padding-right: .5rem;
-  text-align: right;
+  padding-top: 1.5rem;
+  padding-left: .5rem;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: .36rem;
 }
 
 .score{
-  padding-right: .5rem;
-  padding-bottom: .7rem;
-  text-align: right;
+  padding-left: .5rem;
+  padding-bottom: .3rem;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: .36rem;
 }
 
 .playground{
@@ -259,7 +393,7 @@ export default {
   height: 7rem;
   margin: 0 auto;
   position: relative;
-  background: #cccccc;
+  background: url(/static/images/ground.png) no-repeat 0 0/100% 100%;
 }
 
 .diamond{
@@ -275,6 +409,7 @@ export default {
   left: 0;
   right: 0;
   background: rgba(0, 0, 0, 0.8);
+  z-index: 1;
 }
 
 .game-over-txt{

@@ -4,6 +4,8 @@ import Index from '@/pages/index/index';
 import NewGame from '@/pages/newGame/index';
 import InfiniteSchema from '@/pages/infiniteSchema/index';
 import TimeSchema from '@/pages/timeSchema/index';
+import ChallengeSchema from '@/pages/challengeSchema/index';
+import Introduce from '@/pages/introduce/index';
 
 Vue.use(Router);
 
@@ -27,9 +29,17 @@ export default new Router({
       name: 'TimeSchema',
       component: TimeSchema,
     },{
+      path: '/challengeSchema',
+      name: 'ChallengeSchema',
+      component: ChallengeSchema,
+    },{
       path: '/new',
       name: 'NewGame',
       component: NewGame,
+    },{
+      path: '/introduce',
+      name: 'Introduce',
+      component: Introduce,
     }
   ],
 });

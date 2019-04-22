@@ -7,6 +7,8 @@
 <script>
 export default {
   name: 'App',
+  mounted(){
+  }
 };
 </script>
 
@@ -26,6 +28,6 @@ body {
   margin: 0 auto;
   width: 7.5rem;
   height: 100%;
-  background: #eee;
+  /* background: #eee; */
 }
 </style>

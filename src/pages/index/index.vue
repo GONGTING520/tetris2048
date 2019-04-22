@@ -1,20 +1,33 @@
 <template>
-  <ul class="list">
-    <li @click="newGame">单机模式</li>
-    <li @click="infiniteSchema">无限模式</li>
-    <li @click="timeSchema">计时模式</li>
-    <li @click="challengeSchema">闯关模式</li>
-  </ul>
+  <div class="container">
+    <ul class="list">
+      <li @click="newGame" class="single"></li>
+      <li @click="infiniteSchema" class="infinite"></li>
+      <li @click="timeSchema" class="timer"></li>
+      <li @click="challengeSchema" class="level"></li>
+    </ul>
+    <img src="/static/images/introduce.png" class="introduce" @click="introduce" style="cursor:pointer">
+  </div>
 </template>
 
 <script>
+import BackBtn from '@/components/BackBtn.vue';
+
 export default {
   name: 'Index',
   data() {
     return {
     };
   },
+  mounted(){
+  },
+  components: {
+    BackBtn
+  },
   methods: {
+    playBgm(){
+      window.bgm.playBgm()
+    },
     // 新游戏
     newGame(){
       this.$router.push('/new');
@@ -28,17 +41,39 @@ export default {
       this.$router.push('/timeSchema');
     },
     // 闯关模式
-    challengeSchema(){},
+    challengeSchema(){
+      this.$router.push('/challengeSchema');
+    },
+    // 游戏介绍
+    introduce(){
+      this.$router.push('/introduce');
+    }
   }
 };
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+.container{
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: url(/static/images/homebg.jpg) no-repeat 0 0/100% 100%;
+}
+.introduce{
+  position: absolute;
+  right: 6%;
+  bottom: 80%;
+  width: 20%;
+  cursor: pointer;
+}
 .list{
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 7.5rem;
   height: 100%;
-  padding: 2rem 0 3.6rem 0;
+  padding: 2.8rem 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -46,12 +81,20 @@ export default {
   justify-content: space-between;
 }
 .list li{
-  width: 5.6rem;
-  height: 1rem;
-  text-align: center;
-  line-height: 1rem;
-  font-size: .5rem;
-  border: .1rem solid #000;
+  width: 5rem;
+  height: 1.6rem;
   cursor: pointer;
+}
+.single{
+  background: url(/static/images/single.png) no-repeat 0 0/100% 100%;
+}
+.infinite{
+  background: url(/static/images/infinite.png) no-repeat 0 0/100% 100%;
+}
+.timer{
+  background: url(/static/images/timer.png) no-repeat 0 0/100% 100%;
+}
+.level{
+  background: url(/static/images/level.png) no-repeat 0 0/100% 100%;
 }
 </style>
